@@ -1,0 +1,46 @@
+{
+  "realm": "test",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "client-app",
+      "enabled": true,
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "redirectUris" : [ "com.test.appauth:/login" ],
+      "attributes" : {"post.logout.redirect.uris" : "com.test.appauth:/logout"},
+      "clientAuthenticatorType": "client-secret",
+      "secret": "client-secret-value",
+      "serviceAccountsEnabled": true,
+      "defaultRoles": ["user"]
+    }
+  ],
+  "users": [
+    {
+      "username": "test",
+      "enabled": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "test",
+          "temporary": false
+        }
+      ],
+      "clientRoles": {
+        "client-app": ["user"]
+      }
+    }
+  ],
+  "roles": {
+    "client": {
+      "client-app": [
+        {
+          "name": "user",
+          "description": "Basic user role for client-app"
+        }
+      ]
+    }
+  }
+}
