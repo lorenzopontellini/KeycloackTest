@@ -6,13 +6,9 @@ services:
     container_name: keycloak
     ports:
       - "8080:8080"
-    environment:
-#      KC_BOOTSTRAP_ADMIN_USERNAME: admin 
-#      KC_BOOTSTRAP_ADMIN_PASSWORD: admin      
+    environment: 
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: admin
-#      KC_FEATURES: scripts 
-#      KC_PROFILE: preview
     command:
       - start-dev
       - --import-realm

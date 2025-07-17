@@ -10,7 +10,7 @@
       "redirectUris" : [ "com.test.appauth:/login" ],
       "attributes" : {"post.logout.redirect.uris" : "com.test.appauth:/logout"},
       "clientAuthenticatorType": "client-secret",
-      "secret": "client-secret-value",
+      "secret": "Fhw9Rg3QHcAVMbBP0fLbFGK1sIMWB2GJ",
       "serviceAccountsEnabled": true,
       "defaultRoles": ["user"]
     }
@@ -21,6 +21,7 @@
       "enabled": true,
       "firstName": "Test",
       "lastName": "User",
+      "email": "test@example.com",
       "credentials": [
         {
           "type": "password",
@@ -28,6 +29,7 @@
           "temporary": false
         }
       ],
+      "emailVerified" : true,
       "clientRoles": {
         "client-app": ["user"]
       }

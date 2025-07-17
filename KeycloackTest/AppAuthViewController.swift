@@ -6,29 +6,30 @@
 //
 import UIKit
 import AppAuth
-import SafariServices
+import AuthenticationServices
 
 typealias PostRegistrationCallback = (_ configuration: OIDServiceConfiguration?, _ registrationResponse: OIDRegistrationResponse?) -> Void
 
 /**
  The OIDC issuer from which the configuration will be discovered.
 */
-let kIssuer: String = "http://192.168.5.149:8080";
+let baseUrl: String = "http://192.168.5.149:8080";
+//let baseUrl: String = "http://192.168.1.14:8080";
+let tenantName: String = "test"
 
 /**
  The OAuth client ID.
-
- For client configuration instructions, see the [README](https://github.com/openid/AppAuth-iOS/blob/master/Examples/Example-iOS_Swift-Carthage/README.md).
  Set to nil to use dynamic registration with this example.
 */
-let kClientID: String? = "clientapp";
+let kClientID: String? = "client-app";
 
 /**
  The OAuth redirect URI for the client @c kClientID.
-
- For client configuration instructions, see the [README](https://github.com/openid/AppAuth-iOS/blob/master/Examples/Example-iOS_Swift-Carthage/README.md).
 */
-let kRedirectURI: String = "com.itel.keycloak.test:/oauth2redirect";
+let schemaURI: String = "com.test.appauth"
+let loginRedirectURI: String = "\(schemaURI):/login";
+let logoutRedirectURI: String = "\(schemaURI):/logout";
+let clientSecretValue: String = "Fhw9Rg3QHcAVMbBP0fLbFGK1sIMWB2GJ"
 
 /**
  NSCoding key for the authState property.
@@ -36,6 +37,7 @@ let kRedirectURI: String = "com.itel.keycloak.test:/oauth2redirect";
 let kAppAuthExampleAuthStateKey: String = "authState";
 
 class AppAuthViewController: UIViewController{
+    
     @IBOutlet private weak var authAutoButton: UIButton!
     @IBOutlet private weak var authManual: UIButton!
     @IBOutlet private weak var codeExchangeButton: UIButton!
@@ -48,57 +50,15 @@ class AppAuthViewController: UIViewController{
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        self.validateOAuthConfiguration()
-
         self.loadState()
         self.updateUI()
     }
 }
-
-extension AppAuthViewController {
-
-    func validateOAuthConfiguration() {
-
-        // The example needs to be configured with your own client details.
-        // See: https://github.com/openid/AppAuth-iOS/blob/master/Examples/Example-iOS_Swift-Carthage/README.md
-
-        assert(kIssuer != "https://issuer.example.com",
-                "Update kIssuer with your own issuer.\n" +
-                "Instructions: https://github.com/openid/AppAuth-iOS/blob/master/Examples/Example-iOS_Swift-Carthage/README.md");
-
-//        assert(kClientID != "clientapp",
-//                "Update kClientID with your own client ID.\n" +
-//                "Instructions: https://github.com/openid/AppAuth-iOS/blob/master/Examples/Example-iOS_Swift-Carthage/README.md");
-
-        assert(kRedirectURI != "com.example.app:/oauth2redirect/example-provider",
-                "Update kRedirectURI with your own redirect URI.\n" +
-                "Instructions: https://github.com/openid/AppAuth-iOS/blob/master/Examples/Example-iOS_Swift-Carthage/README.md");
-
-        // verifies that the custom URI scheme has been updated in the Info.plist
-        guard let urlTypes: [AnyObject] = Bundle.main.object(forInfoDictionaryKey: "CFBundleURLTypes") as? [AnyObject], urlTypes.count > 0 else {
-            assertionFailure("No custom URI scheme has been configured for the project.")
-            return
-        }
-
-        guard let items = urlTypes[0] as? [String: AnyObject],
-            let urlSchemes = items["CFBundleURLSchemes"] as? [AnyObject], urlSchemes.count > 0 else {
-            assertionFailure("No custom URI scheme has been configured for the project.")
-            return
-        }
-
-        guard let urlScheme = urlSchemes[0] as? String else {
-            assertionFailure("No custom URI scheme has been configured for the project.")
-            return
-        }
-
-        assert(urlScheme != "com.example.app",
-                "Configure the URI scheme in Info.plist (URL Types -> Item 0 -> URL Schemes -> Item 0) " +
-                "with the scheme of your redirect URI. Full instructions: " +
-                "https://github.com/openid/AppAuth-iOS/blob/master/Examples/Example-iOS_Swift-Carthage/README.md")
+extension AppAuthViewController: ASWebAuthenticationPresentationContextProviding {
+    func presentationAnchor(for session: ASWebAuthenticationSession) -> ASPresentationAnchor {
+        return self.view.window!
     }
-
 }
-
 
 //MARK: IBActions
 extension AppAuthViewController {
@@ -107,42 +67,48 @@ extension AppAuthViewController {
         
         guard let authState = authState,
               let idToken = authState.lastTokenResponse?.idToken,
-              let issuer = authState.lastAuthorizationResponse.request.configuration.discoveryDocument?.issuer else {
+              let _ = authState.lastAuthorizationResponse.request.configuration.discoveryDocument?.issuer else {
             print("Missing data")
             return
         }
 
 //        let logoutEndpoint = "http://192.168.5.149:8080/realms/test/protocol/openid-connect/logout".appendingPathComponent("protocol/openid-connect/logout")
+        guard let logoutUrl:URL = URL(string: "\(baseUrl)/realms/\(tenantName)/protocol/openid-connect/logout"),
+            var logoutUrlComponent: URLComponents = URLComponents(url: logoutUrl, resolvingAgainstBaseURL: false) else {
+            print("Missing logout URL")
+            return
+        }
         
-        var urlComponents = URLComponents(url: URL("http://192.168.5.149:8080/realms/test/protocol/openid-connect/logout")!, resolvingAgainstBaseURL: false)!
-        urlComponents.queryItems = [
+        logoutUrlComponent.queryItems = [
             URLQueryItem(name: "id_token_hint", value: idToken),
-            URLQueryItem(name: "post_logout_redirect_uri", value: "com.itel.keycloak.test:/logout")
+            URLQueryItem(name: "post_logout_redirect_uri", value: logoutRedirectURI)
         ]
 
-        guard let logoutURL = urlComponents.url else {
+        guard let logoutURL = logoutUrlComponent.url else {
             print("Could not build logout URL")
             return
         }
 
-        // Apri il logout in SafariViewController
-        present(SFSafariViewController(url: logoutURL), animated: true, completion: nil)
+        let session = ASWebAuthenticationSession(url: logoutURL, callbackURLScheme: schemaURI) { callbackURL, error in
+            // Handle logout result here
+        }
+        session.presentationContextProvider = self  // conforms to ASWebAuthenticationPresentationContextProviding
+        session.start()
     }
 
     @IBAction func authWithAutoCodeExchange(_ sender: UIButton) {
 
         //%s/realms/%s/protocol/openid-connect/auth
         
-        let url = kIssuer + "/realms/test/"
-        guard let issuer = URL(string: url) else {
-            self.logMessage("Error creating URL for : \(kIssuer)")
+        guard let urlLogin = URL(string: "\(baseUrl)/realms/\(tenantName)/") else{
+            print("Could not build logout URL")
             return
         }
 
-        self.logMessage("Fetching configuration for issuer: \(issuer)")
+        self.logMessage("Fetching configuration for issuer: \(urlLogin)")
 
         // discovers endpoints
-        OIDAuthorizationService.discoverConfiguration(forIssuer: issuer) { configuration, error in
+        OIDAuthorizationService.discoverConfiguration(forIssuer: urlLogin) { configuration, error in
 
             guard let config = configuration else {
                 self.logMessage("Error retrieving discovery document: \(error?.localizedDescription ?? "DEFAULT_ERROR")")
@@ -153,7 +119,7 @@ extension AppAuthViewController {
             self.logMessage("Got configuration: \(config)")
 
             if let clientId = kClientID {
-                self.doAuthWithAutoCodeExchange(configuration: config, clientID: clientId, clientSecret: "vV6cAkRDEGI4inRsV0R3mBCXYfVIb3qa")
+                self.doAuthWithAutoCodeExchange(configuration: config, clientID: clientId, clientSecret: clientSecretValue)
             } else {
                 self.doClientRegistration(configuration: config) { configuration, response in
 
@@ -173,46 +139,46 @@ extension AppAuthViewController {
 
     @IBAction func authNoCodeExchange(_ sender: UIButton) {
 
-        let url = kIssuer + "/realms/test/"
-        guard let issuer = URL(string: url) else {
-            self.logMessage("Error creating URL for : \(kIssuer)")
-            return
-        }
-
-        self.logMessage("Fetching configuration for issuer: \(issuer)")
-
-        OIDAuthorizationService.discoverConfiguration(forIssuer: issuer) { configuration, error in
-
-            if let error = error  {
-                self.logMessage("Error retrieving discovery document: \(error.localizedDescription)")
-                return
-            }
-
-            guard let configuration = configuration else {
-                self.logMessage("Error retrieving discovery document. Error & Configuration both are NIL!")
-                return
-            }
-
-            self.logMessage("Got configuration: \(configuration)")
-
-            if let clientId = kClientID {
-
-                self.doAuthWithoutCodeExchange(configuration: configuration, clientID: clientId, clientSecret: nil)
-
-            } else {
-
-                self.doClientRegistration(configuration: configuration) { configuration, response in
-
-                    guard let configuration = configuration, let response = response else {
-                        return
-                    }
-
-                    self.doAuthWithoutCodeExchange(configuration: configuration,
-                                                   clientID: response.clientID,
-                                                   clientSecret: response.clientSecret)
-                }
-            }
-        }
+//        let url = kIssuer + "/realms/test/"
+//        guard let issuer = URL(string: url) else {
+//            self.logMessage("Error creating URL for : \(kIssuer)")
+//            return
+//        }
+//
+//        self.logMessage("Fetching configuration for issuer: \(issuer)")
+//
+//        OIDAuthorizationService.discoverConfiguration(forIssuer: issuer) { configuration, error in
+//
+//            if let error = error  {
+//                self.logMessage("Error retrieving discovery document: \(error.localizedDescription)")
+//                return
+//            }
+//
+//            guard let configuration = configuration else {
+//                self.logMessage("Error retrieving discovery document. Error & Configuration both are NIL!")
+//                return
+//            }
+//
+//            self.logMessage("Got configuration: \(configuration)")
+//
+//            if let clientId = kClientID {
+//
+//                self.doAuthWithoutCodeExchange(configuration: configuration, clientID: clientId, clientSecret: nil)
+//
+//            } else {
+//
+//                self.doClientRegistration(configuration: configuration) { configuration, response in
+//
+//                    guard let configuration = configuration, let response = response else {
+//                        return
+//                    }
+//
+//                    self.doAuthWithoutCodeExchange(configuration: configuration,
+//                                                   clientID: response.clientID,
+//                                                   clientSecret: response.clientSecret)
+//                }
+//            }
+//        }
     }
 
     @IBAction func codeExchange(_ sender: UIButton) {
@@ -359,8 +325,8 @@ extension AppAuthViewController {
 
     func doClientRegistration(configuration: OIDServiceConfiguration, callback: @escaping PostRegistrationCallback) {
 
-        guard let redirectURI = URL(string: kRedirectURI) else {
-            self.logMessage("Error creating URL for : \(kRedirectURI)")
+        guard let redirectURI = URL(string: loginRedirectURI) else {
+            self.logMessage("Error creating URL for : \(loginRedirectURI)")
             return
         }
 
@@ -385,8 +351,8 @@ extension AppAuthViewController {
 
     func doAuthWithAutoCodeExchange(configuration: OIDServiceConfiguration, clientID: String, clientSecret: String?) {
 
-        guard let redirectURI = URL(string: kRedirectURI) else {
-            self.logMessage("Error creating URL for : \(kRedirectURI)")
+        guard let redirectURI = URL(string: loginRedirectURI) else {
+            self.logMessage("Error creating URL for : \(loginRedirectURI)")
             return
         }
 
@@ -421,8 +387,8 @@ extension AppAuthViewController {
 
     func doAuthWithoutCodeExchange(configuration: OIDServiceConfiguration, clientID: String, clientSecret: String?) {
 
-        guard let redirectURI = URL(string: kRedirectURI) else {
-            self.logMessage("Error creating URL for : \(kRedirectURI)")
+        guard let redirectURI = URL(string: loginRedirectURI) else {
+            self.logMessage("Error creating URL for : \(loginRedirectURI)")
             return
         }
 
