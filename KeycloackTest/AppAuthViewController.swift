@@ -13,8 +13,8 @@ typealias PostRegistrationCallback = (_ configuration: OIDServiceConfiguration?,
 /**
  The OIDC issuer from which the configuration will be discovered.
 */
-let baseUrl: String = "http://192.168.5.149:8080";
-//let baseUrl: String = "http://192.168.1.14:8080";
+//let baseUrl: String = "http://192.168.5.149:8080";
+let baseUrl: String = "http://192.168.1.14:8080";
 let tenantName: String = "test"
 
 /**
@@ -22,6 +22,7 @@ let tenantName: String = "test"
  Set to nil to use dynamic registration with this example.
 */
 let kClientID: String? = "client-app";
+//let kClientID: String? = nil;
 
 /**
  The OAuth redirect URI for the client @c kClientID.
@@ -139,48 +140,53 @@ extension AppAuthViewController {
 
     @IBAction func authNoCodeExchange(_ sender: UIButton) {
 
-//        let url = kIssuer + "/realms/test/"
-//        guard let issuer = URL(string: url) else {
-//            self.logMessage("Error creating URL for : \(kIssuer)")
-//            return
-//        }
-//
-//        self.logMessage("Fetching configuration for issuer: \(issuer)")
-//
-//        OIDAuthorizationService.discoverConfiguration(forIssuer: issuer) { configuration, error in
-//
-//            if let error = error  {
-//                self.logMessage("Error retrieving discovery document: \(error.localizedDescription)")
-//                return
-//            }
-//
-//            guard let configuration = configuration else {
-//                self.logMessage("Error retrieving discovery document. Error & Configuration both are NIL!")
-//                return
-//            }
-//
-//            self.logMessage("Got configuration: \(configuration)")
-//
-//            if let clientId = kClientID {
-//
-//                self.doAuthWithoutCodeExchange(configuration: configuration, clientID: clientId, clientSecret: nil)
-//
-//            } else {
-//
-//                self.doClientRegistration(configuration: configuration) { configuration, response in
-//
-//                    guard let configuration = configuration, let response = response else {
-//                        return
-//                    }
-//
-//                    self.doAuthWithoutCodeExchange(configuration: configuration,
-//                                                   clientID: response.clientID,
-//                                                   clientSecret: response.clientSecret)
-//                }
-//            }
-//        }
+        //%s/realms/%s/protocol/openid-connect/auth
+        
+        guard let urlLogin = URL(string: "\(baseUrl)/realms/\(tenantName)/") else{
+            print("Could not build logout URL")
+            return
+        }
+
+        self.logMessage("Fetching configuration for issuer: \(urlLogin)")
+
+        // discovers endpoints
+        OIDAuthorizationService.discoverConfiguration(forIssuer: urlLogin) { configuration, error in
+
+            if let error = error  {
+                self.logMessage("Error retrieving discovery document: \(error.localizedDescription)")
+                return
+            }
+
+            guard let configuration = configuration else {
+                self.logMessage("Error retrieving discovery document. Error & Configuration both are NIL!")
+                return
+            }
+
+            self.logMessage("Got configuration: \(configuration)")
+
+            if let clientId = kClientID {
+
+                self.doAuthWithoutCodeExchange(configuration: configuration, clientID: clientId, clientSecret: nil)
+
+            } else {
+
+                self.doClientRegistration(configuration: configuration) { configuration, response in
+
+                    guard let configuration = configuration, let response = response else {
+                        return
+                    }
+
+                    self.doAuthWithoutCodeExchange(configuration: configuration,
+                                                   clientID: response.clientID,
+                                                   clientSecret: response.clientSecret)
+                }
+            }
+        }
     }
 
+    /**
+     Scambia manualmente il authorizationCode per ottenere accessToken e idToken.
+     */
     @IBAction func codeExchange(_ sender: UIButton) {
 
         guard let tokenExchangeRequest = self.authState?.lastAuthorizationResponse.tokenExchangeRequest() else {
@@ -201,6 +207,10 @@ extension AppAuthViewController {
         }
     }
 
+    /**
+     Usa il token per chiamare /userinfo endpoint
+     Controlla se il token è scaduto (e lo aggiorna se necessario)
+     Effettua richiesta HTTP e mostra la risposta utente.*/
     @IBAction func userinfo(_ sender: UIButton) {
 
         guard let userinfoEndpoint = self.authState?.lastAuthorizationResponse.request.configuration.discoveryDocument?.userinfoEndpoint else {
@@ -291,6 +301,12 @@ extension AppAuthViewController {
         }
     }
 
+    /**
+     Mostra un UIAlertController con opzioni per:
+     Cancellare lo stato OAuth (authState)
+     Cancellare i log
+     Annullare
+     */
     @IBAction func trashClicked(_ sender: UIBarButtonItem) {
 
         let alert = UIAlertController(title: nil,
@@ -323,6 +339,9 @@ extension AppAuthViewController {
 //MARK: AppAuth Methods
 extension AppAuthViewController {
 
+    /**
+     Registra dinamicamente un client OAuth se non è stato specificato clientID.
+     */
     func doClientRegistration(configuration: OIDServiceConfiguration, callback: @escaping PostRegistrationCallback) {
 
         guard let redirectURI = URL(string: loginRedirectURI) else {
@@ -349,6 +368,11 @@ extension AppAuthViewController {
         }
     }
 
+    /**
+     Crea una richiesta di autenticazione (OIDAuthorizationRequest)
+     Mostra la UI del browser
+     Ottiene token automaticamente se login ha successo
+     */
     func doAuthWithAutoCodeExchange(configuration: OIDServiceConfiguration, clientID: String, clientSecret: String?) {
 
         guard let redirectURI = URL(string: loginRedirectURI) else {
@@ -385,6 +409,12 @@ extension AppAuthViewController {
         }
     }
 
+    /**
+     Crea una richiesta di autenticazione (OIDAuthorizationRequest)
+     Mostra la UI del browser
+     Solo login
+     Il token va richiesto successivamente (es. da codeExchange())
+     */
     func doAuthWithoutCodeExchange(configuration: OIDServiceConfiguration, clientID: String, clientSecret: String?) {
 
         guard let redirectURI = URL(string: loginRedirectURI) else {
@@ -427,6 +457,9 @@ extension AppAuthViewController {
 extension AppAuthViewController: OIDAuthStateChangeDelegate, OIDAuthStateErrorDelegate {
 
     func didChange(_ state: OIDAuthState) {
+        
+        print("AUTH STATE AUTORIZED: \(authState?.isAuthorized)")
+        self.authState = state
         self.stateChanged()
     }
 
@@ -468,6 +501,7 @@ extension AppAuthViewController {
         }
         self.authState = authState;
         self.authState?.stateChangeDelegate = self;
+        print("AUTH STATE AUTORIZED: \(authState?.isAuthorized)")
         self.stateChanged()
     }
 

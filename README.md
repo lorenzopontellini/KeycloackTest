@@ -1,24 +1,7 @@
 # Keycloack Test
-
-## 🧭 Sommario
-
-- [📦 Nome del Progetto](#nome-del-progetto)
-- [🧭 Sommario](#sommario)
-- [📂 Struttura del progetto](#struttura)
-- [🚀 Funzionalità](#funzionalità)
-- [📸 Screenshot](#screenshot)
-- [🛠️ Tecnologie utilizzate](#tecnologie-utilizzate)
-- [📦 Installazione](#installazione)
-- [📂 Struttura del progetto](#struttura-del-progetto)
-- [⚙️ Utilizzo](#utilizzo)
-- [🧪 Test](#test)
-- [📄 Licenza](#licenza)
-- [🙋‍♂️ Contribuire](#contribuire)
-- [📬 Contatti](#contatti)
-
----
-
-## 📂 Struttura del progetto
+This is a simple repo to show integration between an iOS app and keycloack.
+This example is the same of [AppAuth](https://github.com/openid/AppAuth-iOS)
+## 📂 Project structure
 
 ```text
 .
@@ -41,8 +24,8 @@
 ```
 
 ## Preconditions
-
-- Install and run keycloak
-- run ``` docker-compose up -d``` for run Keycloack with test-realm.json file present into repository
-
-
+You should have up and running `keycloack` in local. You can use `docker-compose` and run `docker-compose up`.
+Kycloack image use use `test-realm.json` file presente in repo to start keycloack in dev mode.
+User credentials are:
+- username: `test`
+- password: `test`
